@@ -1,0 +1,57 @@
+module uart_baud_rate_gen_temp #(parameter BAUD_RATE, fcr)
+  (
+      clk,
+      rst,
+      clk_new
+  );
+  
+  input clk;
+  input rst;
+  output reg clk_new;
+  
+  reg [6:0]baud_new;
+  reg [5:0] count_up;
+  reg clk_temp;
+
+  initial 
+  begin
+      baud_new =0;
+      count_up=0;
+      $display("BAUD_RATE=%d",BAUD_RATE);
+      $display("fcr=%d",fcr);
+
+      baud_new = ((fcr*(10**6))/(16*BAUD_RATE)) -1;
+      $display("baud new=%d",baud_new);
+
+  end
+  
+  always @(posedge clk or posedge rst)
+  begin
+      if(rst)
+          clk_new<='b0;
+      else
+          clk_new<=clk_temp;
+  end
+
+  always @(posedge clk)
+  begin
+      if(count_up == (baud_new -1))
+      begin
+          if(clk_temp=='b0 || clk_temp==='x)
+              clk_temp<='b1;
+          else
+              clk_temp<='b0;
+          count_up<='b0;
+      end
+      else
+      begin
+          count_up <=count_up + 'b1;
+      end
+
+  end
+
+endmodule
+
+
+
+
