@@ -1,0 +1,24 @@
+//module uart_top:
+//PURPOSE : Purpose of this module is to instantiate all the components
+//of the UART
+//
+//NOTE : Inputs and outputs of the top module will change if we make it as
+//a single UART device and not short the Tx and Rx for testing purpose
+
+//REVISION HISTORY: 12/10/2019
+
+module uart_top
+  (
+      cntrl_in_appl,
+      clk,
+      rst,
+      data_in,
+      data_out
+  );
+
+  input cntrl_in_appl;
+  input clk;
+  input rst;
+  input [7:0]data_in;
+  output [7:0] data_out;
+
