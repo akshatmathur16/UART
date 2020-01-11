@@ -1,0 +1,120 @@
+// counter is implemeted in RX module only 
+// iplementing cntrl_out_rx, becasue this UART will also work as a single device and RX module will tell cntrl block that it is still receving data 
+module uart_rx(rx_data,
+               clk2,
+               rst,
+               cntrl_out_rx,
+               rx_data_out
+               );
+
+  input rx_data;
+  input clk2,rst;
+  output reg [1:0]cntrl_out_rx;
+  output reg [7:0] rx_data_out;
+  
+  reg [7:0]sipo_mem;
+
+  reg [0:0] data_started=1'b0;
+  reg [0:0] data_complete=1'b0;
+  integer count_rx=1'd0;
+  
+  parameter START_BIT = 1'b0;
+  parameter STOP_BIT= 1'b1;
+
+  always @(posedge clk2 or posedge rst)
+  begin
+      if(~rst)
+      begin
+          if(rx_data == START_BIT && data_started =='d0 && count_rx=='d0)
+          begin
+              cntrl_out_rx <='b1; //indicating to control unit that Rx is receving data
+          end
+          else if(rx_data ==STOP_BIT && data_started =='d1 && count_rx=='d10)
+          begin
+              cntrl_out_rx<='d2; //indicating to control unit that Rx has completed data reception
+          end
+          else  // scenario in which Tx piso mem is loading 
+               cntrl_out_rx<='b0;
+       end
+       else
+          cntrl_out_rx <='d0;
+  end
+     
+  always @(posedge clk2 or posedge rst)
+  begin
+      if(~rst)
+      begin
+          if(rx_data == START_BIT && data_started =='d0 && count_rx=='d0)
+          begin
+              data_started <='d1;
+              data_complete <='d0;
+          end
+          else if(rx_data ==STOP_BIT && data_started =='d1 && count_rx=='d10)
+          begin
+              data_started <='d0;
+              data_complete <='d1;
+          end
+          else if(data_complete=='d1)
+          begin
+              data_started <= 0;
+              data_complete <= 0;
+          end
+      end
+      else
+      begin
+          data_started <='d0;
+          data_complete <='d0;
+      end
+  end
+
+  always @(posedge clk2 or posedge rst)
+  begin
+     if(~rst)
+     begin
+         if(data_started =='d1)
+         begin
+             sipo_mem[count_rx] <=rx_data;
+             count_rx=count_rx+1;
+
+             if(rx_data ==STOP_BIT && count_rx=='d10)
+             begin
+                 sipo_mem[count_rx] <=rx_data;
+             end
+             $display("%t: sipo_mem[%d]=%d",$time, count_rx,sipo_mem[count_rx]);
+         end
+         else if(data_complete=='d1)
+         begin
+             count_rx<=0;
+             $display("****READING OF DATA COMPLETE **** \n");
+             sipo_mem <= 'b0; //memory is initialized to 0 after reception of 1 packet of data 
+         end
+         else if(~data_started && ~data_complete)
+         begin
+             sipo_mem <= 'b0; //memory is initialized to 0 in the beginning  
+         end
+     end
+     else
+     begin
+         count_rx<=0;
+         sipo_mem<='b0; //TODO
+     end
+ end
+
+ always @(posedge clk2 or posedge rst)
+ begin
+    if(~rst)
+    begin
+        if(data_complete=='d1)
+        begin
+            rx_data_out <= sipo_mem;  //data given out by RX to application layer
+        end
+        else
+            rx_data_out <= 'b0;
+    end
+    else
+    begin
+        rx_data_out <= 'b0;
+    end
+ end
+  
+endmodule
