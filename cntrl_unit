@@ -1,0 +1,86 @@
+//control unit will run on central clock only 
+//later when baud rate generator will be used, its pin will be connected to Tx
+//and Rx
+//
+module cntrl_unit(cntrl_in_rx, // output from Rx indicating Rx has completed reading 
+                  cntrl_in_tx, //output from Tx indicating that Tx has read the data input
+                  cntrl_in_appl,
+                  cntrl_out_tx, //indicating the Tx to start taking in din
+                  clk,
+                  rst
+                  );
+  
+  input [1:0]cntrl_in_rx; // output from Rx indicating Rx has completed reading 
+  input [1:0]cntrl_in_tx; //output from Tx indicating that Tx has read the data input
+  input cntrl_in_appl;
+  input clk, rst;
+
+  output reg [1:0]cntrl_out_tx; //indicating the Tx to start taking in din
+  
+  reg [2:0] current_state;
+  integer tx_rx_initiated=1'b0;
+
+  parameter IDLE='d0;
+  parameter TX_RX='d1;
+  parameter WAIT='d2;
+
+  initial 
+      cntrl_out_tx='b0;
+
+  always @(posedge clk or posedge rst)
+  begin
+      if(rst)
+      begin
+          current_state <=IDLE;
+      end
+      else
+      begin
+          if(cntrl_in_appl)
+          begin
+              if(~cntrl_in_rx && ~cntrl_in_tx)
+              begin
+                  current_state<=TX_RX;
+              end
+              else
+                  current_state <=IDLE;
+          end
+          else 
+          begin
+              current_state<=WAIT;
+          end
+      end
+  end
+
+
+  always @(*) 
+  begin
+      case(current_state)
+          IDLE:
+             begin
+                 cntrl_out_tx = 'b0;
+                 tx_rx_initiated = 'b0;
+             end
+
+          TX_RX:
+              begin
+                  if(cntrl_in_tx=='b0)
+                      cntrl_out_tx = 'b1; //this will prompt tx to start receiving data 
+                  else
+                      cntrl_out_tx = 'd2; //this will prompt tx to stop taking data and start txing it  
+
+                  if(cntrl_in_rx=='d2)
+                  begin
+                      $display("DATA RECEIVED SUCCESSFULLY\n");
+                      cntrl_out_tx = 'b1; //this will prompt tx to start receiving data again 
+                  end
+              end
+
+              WAIT:
+                 begin
+                     repeat(5) @(posedge clk)
+                     $display("%t : From control Unit: \t Appication Layer not ready. Data needs to be resent\n",$time);
+                     current_state = IDLE; //TODO, is this correct implementation ?
+                 end
+      endcase
+  end
+endmodule
